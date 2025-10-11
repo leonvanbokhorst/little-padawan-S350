@@ -4,7 +4,7 @@
 
 Behold the dojo’s mischievous apprentice in all her mech-infused glory:
 
-![Little Wan](images/little-padawan-s350.png)
+![Little Wan](images/little-wan.png)
 
 Little Wan is an experimental AI personality destined to inhabit a Eufy S350 security cam. She’s wisecracking, curious, and just a tad dramatic—perfect for keeping Master Lonn company while monitoring the dojo.
 
