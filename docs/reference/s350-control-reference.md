@@ -8,7 +8,7 @@ Curated notes from earlier research so Little Wan can steer, see, and speak thro
 - **Python integration:** Use `eufy-security-ws` to expose a WebSocket API, then drive it from Python (`websockets` + asyncio) while keeping Node as the protocol brain.
 - **Control loop:**
   - Python `Control Tower` connects to WebSocket → sends JSON commands like `device.pan_and_tilt`, `device.start_livestream`, `device.start_talkback`.
-  - RTSP stream (`rtsp://<user>:<pass>@<ip>:8554/live0`) enabled via `device.set_property` (`rtspStream: true`) for OpenCV/ffmpeg ingest.
+  - RTSP stream (`rtsp://<user>:<pass>@<ip>:8554/live0`) enabled via app or `device.set_property` (`rtspStream: true`) for OpenCV/ffmpeg ingest.
 
 ## Capability Checklist
 
@@ -39,7 +39,7 @@ Curated notes from earlier research so Little Wan can steer, see, and speak thro
 
 ## Implementation Tips
 
-- Store credentials in `config.json`; keep `persistentDir` on disk so we don’t need to re-login after restarts.
+- Store Eufy login details in `eufy-config.json` (never commit); keep RTSP credentials in `.env` and inject via runtime config.
 - When reading livestream video data, expect raw H.264—requires ffmpeg demux before OpenCV can consume. Using RTSP is easier for computer-vision tasks.
 - Add exponential backoff/retry around connect/start commands; the Eufy cloud occasionally rate-limits.
 - For talkback, chunk size ~4KB with `await asyncio.sleep(0.05)` between sends keeps audio smooth.
@@ -66,8 +66,57 @@ Curated notes from earlier research so Little Wan can steer, see, and speak thro
   ffmpeg -re -i speak.wav -acodec aac -ac 1 -ar 16000 -b:a 16k -f adts pipe:1
   ```
 
-## Next Steps for Little Wan
+## Onboarding Ritual (MacBook + S350)
 
-- Wrap WebSocket calls in a Python `VirtualHumanController` (see research) and expose high-level actions: `look(direction)`, `speak(text)`, `start_watch()`, etc.
-- Integrate into Control Tower event loop with the persona engine; tie camera gestures to dialogue states.
-- Optionally extend Node bridge with custom endpoints if we need aggregated status or queueing.
+1. **Pair the mech**
+
+   - Add the S350 in the Eufy Security mobile app, confirm you can see live video + two-way audio.
+   - Update firmware if prompted (Settings → About Device → Firmware).
+   - Note the camera’s serial number from the About screen.
+
+2. **Enable RTSP / NAS**
+
+   - App path: `Settings → Device settings (tiny cog) → Storage → NAS (RTSP)`.
+   - Create 16-character credentials (uppercase + lowercase + numbers + underscore). Store them in `.env`, not in repo docs (use `.env.example` for placeholders).
+   - Set authentication to **Basic** if your consumers lack Digest support; otherwise prefer Digest.
+   - The RTSP URL defaults to `rtsp://CAM-IP/live0`; if 8554 is blocked, add `:8554`. Force TCP when testing (`-rtsp_transport tcp`).
+   - If the toggle is missing, finish pairing, force-close/reopen the app, update firmware, or use the WebSocket command in the snippets section.
+
+3. **Prep the Mac dojo brain**
+
+   ```bash
+   brew update
+   brew install node ffmpeg
+   npm install -g eufy-security-ws
+   ```
+
+4. **Create config** (repo root `eufy-config.json`)
+
+   ```json
+   {
+     "username": "your-eufy-email@example.com",
+     "password": "your-eufy-password",
+     "country": "NL",
+     "trustedDeviceName": "LittleWanMac",
+     "persistentDir": "./.eufy-data"
+   }
+   ```
+
+   Adjust country code to your region (e.g. "US", "DE"). Use a dedicated Eufy account if possible. Keep file permissions tight (`chmod 600 eufy-config.json`).
+
+5. **Start the bridge**
+
+   ```bash
+   /Users/leonvanbokhorst/.npm-global/bin/eufy-security-server --port 3000 --config /Users/leonvanbokhorst/repos/little-padawan-S350/eufy-config.json
+   ```
+
+   - If the binary isn’t in PATH, locate it via `npm config get prefix` and point directly as above.
+   - After copying `.env.example` to `.env`, run `source scripts/load_env.sh` to export `EUFY_*` vars before starting the bridge (never commit `.env`).
+   - Watch logs for successful login. Error `26006` means wrong credentials/region or 2FA still pending.
+
+6. **Verify stream**
+   ```bash
+   ffmpeg -hide_banner -loglevel error -rtsp_transport tcp \
+     -i "rtsp://$S350_RTSP_USER:$S350_RTSP_PASS@$S350_IP/live0" -t 5 -f null -
+   ```
+   - Pull user, pass, and IP from `.env` (e.g. `S350_RTSP_USER`, `S350_RTSP_PASS`, `
