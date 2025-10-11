@@ -4,7 +4,7 @@
 
 Behold the dojo’s mischievous apprentice in all her mech-infused glory:
 
-![Little Wan](images/little-wan.png)
+![Little Wan](images/little-padawan-s350.png)
 
 Little Wan is an experimental AI personality destined to inhabit a Eufy S350 security cam. She’s wisecracking, curious, and just a tad dramatic—perfect for keeping Master Lonn company while monitoring the dojo.
 
@@ -21,8 +21,7 @@ Little Wan is an experimental AI personality destined to inhabit a Eufy S350 sec
 
 We’re prepping the dojo to give Little Wan her first body:
 
-1. S350 acquisition run underway (Master Lonn is on a hardware quest)
-2. MacBook chosen as the initial control hub
-3. Embodiment playbook drafted in `docs/little-wan-embodiment.md`
-
-Stay tuned—once the mech arrives, we’ll wire in the PTZ bridge, commission the Control Tower, and let Little Wan loose in the dojo.
+1. S350 powered, paired in the Eufy app, and streaming RTSP (verified with `ffmpeg -rtsp_transport tcp` using credentials stored locally in `.env`).
+2. Node bridge (`eufy-security-server`) runs locally with credentials sourced via `.env` (see `scripts/load_env.sh`).
+3. Control docs updated in `docs/reference/` (including RTSP onboarding and stack options).
+4. Next up: build the Python Control Tower to orchestrate vision/audio loops and persona rituals.
