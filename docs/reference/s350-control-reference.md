@@ -66,6 +66,58 @@ Curated notes from earlier research so Little Wan can steer, see, and speak thro
   ffmpeg -re -i speak.wav -acodec aac -ac 1 -ar 16000 -b:a 16k -f adts pipe:1
   ```
 
+## Onboarding Ritual (MacBook + S350)
+
+1. **Pair the mech**
+
+   - Add the S350 in the Eufy Security mobile app, confirm you can see live video + two-way audio.
+   - Update firmware if prompted (Settings → About Device → Firmware).
+   - Note the camera’s serial number from the About screen.
+
+2. **Enable RTSP / NAS**
+
+   - App path: `Settings → General → Storage → NAS (RTSP)`.
+   - Toggle on, set a stream username/password, save the generated URL (`rtsp://user:pass@CAM-IP:8554/live0`).
+   - If the toggle is missing, finish pairing, force-close/reopen the app, or update firmware. As last resort, enable it later via the WebSocket command in the snippets section.
+
+3. **Prep the Mac dojo brain**
+
+   ```bash
+   brew update
+   brew install node ffmpeg
+   npm install -g eufy-security-ws
+   ```
+
+4. **Create config** (repo root `eufy-config.json`)
+
+   ```json
+   {
+     "username": "your-eufy-email@example.com",
+     "password": "your-eufy-password",
+     "country": "NL",
+     "trustedDeviceName": "LittleWanMac",
+     "persistentDir": "./.eufy-data"
+   }
+   ```
+
+   Adjust country code to your region (e.g. "US", "DE"). Use a dedicated Eufy account if possible. Keep file permissions tight (`chmod 600 eufy-config.json`).
+
+5. **Start the bridge**
+
+   ```bash
+   /Users/leonvanbokhorst/.npm-global/bin/eufy-security-server --port 3000 --config /Users/leonvanbokhorst/repos/little-padawan-S350/eufy-config.json
+   ```
+
+   - If the binary isn’t in PATH, locate it via `npm config get prefix` and point directly as above.
+   - Watch logs for successful login. Error `26006` means wrong credentials/region or 2FA still pending.
+
+6. **Verify stream**
+   ```bash
+   ffmpeg -i rtsp://user:pass@CAM-IP:8554/live0 -f null -
+   ```
+   - Camera mic/speaker work through the same talkback channel; no extra hardware required.
+   - Keep the bridge running in its own terminal tab while developing the Python Control Tower.
+
 ## Next Steps for Little Wan
 
 - Wrap WebSocket calls in a Python `VirtualHumanController` (see research) and expose high-level actions: `look(direction)`, `speak(text)`, `start_watch()`, etc.

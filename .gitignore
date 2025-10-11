@@ -1,0 +1,9 @@
+eufy-config.json
+.env
+.eufy-data
+.DS_Store
+.vscode
+.idea
+.pytest_cache
+.ruff_cache
+.cursorrules
