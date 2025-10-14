@@ -4,9 +4,14 @@ eufy-config.json
 .DS_Store
 .vscode
 .idea
+.pyc
+.pyo
+.pyd
+__pycache__/
 .pytest_cache
 .ruff_cache
 .cursorrules
 /captures
 .venv
 uv.lock
+__pycache__

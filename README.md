@@ -23,7 +23,8 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
 - Environment loader script preps `.env` secrets (`scripts/load_env.sh`).
 - `uv` project initialized with Python 3.12, `.venv`, and `fastapi`/`uvicorn` dependencies pinned in `pyproject.toml`.
 - `eufy-config.json` currently holds local credentials; treat like a temporary secret vault and do not commit anywhere public.
-- Next moves: connect the Control Tower to the Eufy bridge, wire the event bus, and spin up vision/audio providers.
+- Control Tower skeleton now connects to bridge, exposes `/events`, and emits stubbed vision motion events.
+- Next moves: implement genuine vision/audio providers and ritual automation.
 
 ## Quickstart for Apprentice Builders
 
