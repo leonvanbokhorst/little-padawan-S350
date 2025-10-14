@@ -60,6 +60,11 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
 - **Provider swap**: Flip to OpenAI (or future providers) by setting `CONTROL_TOWER_STT_KIND=openai` and supplying API credentials plus options like `{"model":"gpt-4o-mini-transcribe"}`.
 - **Dependencies**: Faster Whisper ships in the project deps. Remote engines may need extra installs (e.g. `pip install openai`) before launching the tower.
 - **Audio source**: Currently listens to the host microphone; roadmap item will ingest the S350 livestream audio stream directly from the bridge.
+- **Model cache**: Control Tower stashes weights under `.control_tower/models` (gitignored). Prefetch with:
+  ```bash
+  uv run python -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8', download_root='.control_tower/models')"
+  ```
+  Sample clip `captures/s350-sample.mp4` is nearly silent—use your own audio to verify transcripts.
 
 ## Repository Map
 
