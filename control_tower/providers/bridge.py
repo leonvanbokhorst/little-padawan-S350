@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-import copy
 import json
 import logging
 from typing import Any, Awaitable, Callable, Dict, Optional
 
 import websockets
+
+from .device_registry import DeviceRegistry
+from .message_normalizer import MessageNormalizer
 
 
 LOGGER = logging.getLogger(__name__)
@@ -24,6 +26,7 @@ class BridgeClient:
         url: str,
         token: Optional[str] = None,
         reconnect_delay: float = 3.0,
+        event_history: int = 200,
     ) -> None:
         self.url = url
         self.token = token
@@ -33,12 +36,13 @@ class BridgeClient:
         self._recv_task: Optional[asyncio.Task[None]] = None
         self._running = False
         self._message_id = 0
-        self._devices: dict[str, dict[str, Any]] = {}
+        self._registry = DeviceRegistry(event_history=event_history)
+        self._normalizer = MessageNormalizer()
         self._ready = asyncio.Event()
 
     @property
     def devices(self) -> Dict[str, Dict[str, Any]]:
-        return copy.deepcopy(self._devices)
+        return self._registry.devices
 
     async def wait_until_ready(self, timeout: float | None = None) -> None:
         if timeout is None:
@@ -99,31 +103,24 @@ class BridgeClient:
         payload: dict[str, Any] = {
             "command": command,
             "messageId": self._next_message_id(),
-        }
-        payload.update(params)
+        } | params
         LOGGER.debug("Bridge request %s", payload)
         await self.send_payload(payload)
 
+    async def device_command(self, name: str, serial: str, **params: Any) -> None:
+        await self.request(f"device.{name}", serialNumber=serial, **params)
+
     async def pan_and_tilt(self, serial_number: str, direction: int) -> None:
-        await self.request(
-            "device.pan_and_tilt",
-            serialNumber=serial_number,
-            direction=direction,
-        )
+        await self.device_command("pan_and_tilt", serial_number, direction=direction)
 
     async def set_property(self, serial_number: str, name: str, value: Any) -> None:
-        await self.request(
-            "device.set_property",
-            serialNumber=serial_number,
-            name=name,
-            value=value,
-        )
+        await self.device_command("set_property", serial_number, name=name, value=value)
 
     async def start_livestream(self, serial_number: str) -> None:
-        await self.request("device.start_livestream", serialNumber=serial_number)
+        await self.device_command("start_livestream", serial_number)
 
     async def stop_livestream(self, serial_number: str) -> None:
-        await self.request("device.stop_livestream", serialNumber=serial_number)
+        await self.device_command("stop_livestream", serial_number)
 
     async def _run(self, on_event: BridgeEventCallback) -> None:
         headers = {}
@@ -135,7 +132,7 @@ class BridgeClient:
                 LOGGER.info("Connecting to bridge %s", self.url)
                 async with websockets.connect(
                     self.url,
-                    additional_headers=headers if headers else None,
+                    additional_headers=headers or None,
                     ping_interval=20,
                     ping_timeout=20,
                     close_timeout=5,
@@ -150,8 +147,9 @@ class BridgeClient:
                         except json.JSONDecodeError:
                             LOGGER.warning("Bridge sent non-JSON payload: %s", message)
                             continue
-                        normalized = self._normalize_message(data)
-                        self._track_devices(normalized)
+                        normalized = self._normalizer.normalize(data)
+                        self._registry.update_from_result(normalized.get("result", {}))
+                        self._registry.update_from_event(normalized.get("event", {}))
                         await on_event(normalized)
             except (OSError, websockets.WebSocketException) as exc:
                 LOGGER.warning("Bridge connection error: %s", exc)
@@ -165,57 +163,9 @@ class BridgeClient:
                     )
                     await asyncio.sleep(self.reconnect_delay)
 
-    def _track_devices(self, message: dict[str, Any]) -> None:
-        result = message.get("result")
-        if isinstance(result, dict):
-            serial = result.get("serialNumber") or result.get("deviceSerialNumber")
-            if serial:
-                device = self._devices.setdefault(serial, {})
-                props = result.get("properties")
-                if isinstance(props, dict):
-                    device.setdefault("properties", {}).update(props)
-                metadata = result.get("propertiesMetadata") or result.get("metadata")
-                if isinstance(metadata, dict):
-                    device.setdefault("propertiesMetadata", {}).update(metadata)
-        event = message.get("event")
-        if isinstance(event, dict):
-            serial = (
-                event.get("serialNumber") or event.get("device") or event.get("station")
-            )
-            if serial:
-                device = self._devices.setdefault(serial, {})
-                device.setdefault("events", []).append(event)
-
     def _next_message_id(self) -> str:
         self._message_id += 1
         return str(self._message_id)
-
-    def _normalize_message(self, data: Any) -> dict[str, Any]:
-        if not isinstance(data, dict):
-            return {"type": "bridge.raw", "data": data}
-
-        normalized: dict[str, Any] = {"type": "bridge.raw", "data": data}
-        msg_type = data.get("type")
-
-        if msg_type == "event":
-            event = data.get("event", {})
-            event_type = (
-                event.get("eventType")
-                or event.get("event_type")
-                or event.get("name")
-                or event.get("event")
-                or "event"
-            )
-            sanitized = str(event_type).replace(":", ".")
-            normalized["type"] = f"bridge.event.{sanitized}"
-            normalized["event"] = event
-        elif msg_type == "result":
-            command = data.get("command", "unknown")
-            normalized["type"] = f"bridge.result.{command}"
-            normalized["result"] = data.get("result", {})
-        elif msg_type:
-            normalized["type"] = f"bridge.{msg_type}"
-        return normalized
 
 
 __all__ = ["BridgeClient"]

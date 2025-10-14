@@ -8,6 +8,7 @@ from typing import Dict, Optional
 
 import os
 import json
+import logging
 
 
 CONFIG_ENV_PREFIX = "CONTROL_TOWER_"
@@ -97,6 +98,17 @@ def load_config(overrides: Optional[Dict[str, str]] = None) -> ControlTowerConfi
     data_dir = env("DATA_DIR")
     if data_dir:
         config.data_dir = Path(data_dir)
+
+    if not config.bridge_url:
+        raise ValueError("CONTROL_TOWER_BRIDGE_URL (bridge_url) must be set")
+    if config.device_serial is None:
+        LOGGER = logging.getLogger(__name__)  # lazy import
+        LOGGER.warning(
+            "CONTROL_TOWER_DEVICE_SERIAL not set; bridge commands will operate without a target device"
+        )
+    if config.rtsp_url is None:
+        LOGGER = logging.getLogger(__name__)
+        LOGGER.info("CONTROL_TOWER_RTSP_URL not set; vision loop will be disabled")
 
     return config
 

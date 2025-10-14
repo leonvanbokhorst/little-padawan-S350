@@ -80,56 +80,62 @@ class VisionLoop:
 
     def _capture_loop(self) -> None:
         assert cv2 is not None and np is not None
+        cap: Optional[cv2.VideoCapture] = None  # type: ignore[assignment]
+        prev_frame: Optional[np.ndarray] = None
+        last_processed = 0.0
+
         while self._running:
-            cap = cv2.VideoCapture(self.rtsp_url)  # type: ignore[arg-type]
-            if not cap.isOpened():
+            if cap is None or not cap.isOpened():
+                if cap is not None:
+                    cap.release()
+                cap = cv2.VideoCapture(self.rtsp_url)  # type: ignore[arg-type]
+                if not cap.isOpened():
+                    LOGGER.warning(
+                        "Vision loop: unable to open RTSP stream; retrying in 5s"
+                    )
+                    self._sleep(5)
+                    cap = None
+                    continue
+                LOGGER.info("Vision loop connected to RTSP stream")
+                prev_frame = None
+                last_processed = 0.0
+
+            ret, frame = cap.read()
+            if not ret:
                 LOGGER.warning(
-                    "Vision loop: unable to open RTSP stream; retrying in 5s"
+                    "Vision loop: failed to read frame; restarting after short pause"
                 )
+                self._sleep(1)
                 cap.release()
-                self._sleep(5)
+                cap = None
                 continue
 
-            LOGGER.info("Vision loop connected to RTSP stream")
-            prev_frame: Optional[np.ndarray] = None
-            frame_counter = 0
+            now = time.time()
+            if now - last_processed < self.poll_interval:
+                continue
+            last_processed = now
 
-            try:
-                while self._running:
-                    ret, frame = cap.read()
-                    if not ret:
-                        LOGGER.warning(
-                            "Vision loop: failed to read frame; restarting stream"
-                        )
-                        break
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = cv2.GaussianBlur(gray, (21, 21), 0)
 
-                    frame_counter += 1
-                    if frame_counter % max(int(1 / self.poll_interval), 1) != 0:
-                        continue
+            if prev_frame is None:
+                prev_frame = gray
+                continue
 
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    gray = cv2.GaussianBlur(gray, (21, 21), 0)
+            diff = cv2.absdiff(prev_frame, gray)
+            _, thresh = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
+            motion_pixels = int(np.count_nonzero(thresh))
+            total_pixels = thresh.size
+            motion_ratio = motion_pixels / total_pixels if total_pixels else 0
+            prev_frame = gray
 
-                    if prev_frame is None:
-                        prev_frame = gray
-                        continue
+            if motion_pixels >= self.motion_threshold:
+                if now - self._last_motion >= self.cooldown:
+                    self._emit_motion_event(motion_pixels, motion_ratio)
+                    self._last_motion = now
 
-                    diff = cv2.absdiff(prev_frame, gray)
-                    _, thresh = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
-                    motion_pixels = int(np.count_nonzero(thresh))
-                    total_pixels = thresh.size
-                    motion_ratio = motion_pixels / total_pixels if total_pixels else 0
-
-                    prev_frame = gray
-
-                    if motion_pixels >= self.motion_threshold:
-                        now = time.time()
-                        if now - self._last_motion >= self.cooldown:
-                            self._emit_motion_event(motion_pixels, motion_ratio)
-                            self._last_motion = now
-            finally:
-                cap.release()
-                self._sleep(1)
+        if cap is not None:
+            cap.release()
 
     def _emit_motion_event(self, pixels: int, ratio: float) -> None:
         if not self._loop:

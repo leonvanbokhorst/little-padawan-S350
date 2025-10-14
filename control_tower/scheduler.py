@@ -58,12 +58,15 @@ class Scheduler:
         )
         try:
             while self._running:
-                await scheduled.coro_factory()
+                try:
+                    await scheduled.coro_factory()
+                except Exception as exc:  # pragma: no cover - log and continue
+                    LOGGER.exception(
+                        "Scheduler task '%s' failed: %s", scheduled.name, exc
+                    )
                 await asyncio.sleep(scheduled.interval)
         except asyncio.CancelledError:
             LOGGER.info("Scheduler task '%s' cancelled", scheduled.name)
             raise
-        except Exception as exc:
-            LOGGER.exception("Scheduler task '%s' failed: %s", scheduled.name, exc)
         finally:
             LOGGER.info("Scheduler task '%s' stopped", scheduled.name)

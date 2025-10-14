@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Dict, Optional, Callable
+from typing import Any, AsyncIterator, Callable
 
 
 @dataclass
 class Event:
     type: str
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     source: str
-    id: Optional[str] = None
+    id: str | None = None
 
 
 class EventBus:
@@ -20,19 +20,22 @@ class EventBus:
 
     def __init__(self) -> None:
         self._queue: asyncio.Queue[Event] = asyncio.Queue()
-        self._listeners: list[Callable[[Event], None]] = []
+        self._listeners: list[Callable[[Event], Any]] = []
 
     def publish(self, event: Event) -> None:
+        loop = asyncio.get_running_loop()
         self._queue.put_nowait(event)
         for listener in self._listeners:
-            listener(event)
+            if asyncio.iscoroutinefunction(listener):
+                loop.create_task(listener(event))
+            else:
+                loop.run_in_executor(None, listener, event)
 
     async def subscribe(self) -> AsyncIterator[Event]:
         while True:
-            event = await self._queue.get()
-            yield event
+            yield await self._queue.get()
 
-    def add_listener(self, listener: Callable[[Event], None]) -> None:
+    def add_listener(self, listener: Callable[[Event], Any]) -> None:
         self._listeners.append(listener)
 
 
