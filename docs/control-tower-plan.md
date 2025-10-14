@@ -101,11 +101,10 @@
 - Configure structured logging (JSON optional).
 - Provide helper for event audit trails.
 
-### 3.8 CLI Entrypoint (WIP)
+### 3.8 CLI Entrypoint
 
-- `uv run uvicorn control_tower.app:create_app --factory` → start FastAPI service.
-- TODO: `python -m control_tower` convenience launcher.
-- TODO: `python -m control_tower.checks` health diagnostics.
+- `python -m control_tower` → start FastAPI service (uses Uvicorn factory).
+- `python -m control_tower.checks` → health diagnostics hitting `/status`.
 
 ## 4. Startup Sequence
 
@@ -130,7 +129,7 @@
 - [x] Implement `config.py` + baseline environment loading.
 - [x] Create FastAPI app with `/status` route and server startup script.
 - [x] Draft event bus + stub providers that log calls.
-- [x] Add CLI entry to start service (`uv run uvicorn control_tower.app:create_app --factory`).
+- [x] Add CLI entry to start service (`python -m control_tower`).
 - [x] Write placeholder tests or smoke checks (import, config load).
 - [ ] Update `START_PROCEDURE.md` with Control Tower launch command once implemented.
 

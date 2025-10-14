@@ -77,10 +77,10 @@ ffplay -rtsp_transport tcp "rtsp://$S350_RTSP_USER:$S350_RTSP_PASS@$S350_IP/live
 From an activated `.venv` shell:
 
 ```bash
-uv run uvicorn control_tower.app:create_app --factory --host 127.0.0.1 --port 9000
+uv run python -m control_tower
 ```
 
-- Visit `http://127.0.0.1:9000/status` to confirm `status: ok` and verify mode/bridge info.
+- Visit `http://127.0.0.1:9000/status` or run `uv run python -m control_tower.checks` for a quick health report.
 - Leave this running while testing downstream loops.
 
 ## 6. Shut Down Gracefully

@@ -6,25 +6,25 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
 
 ## Project Snapshot
 
-| Element           | Status                                                                      |
-| ----------------- | --------------------------------------------------------------------------- |
-| **Body**          | Eufy S350 camera paired, RTSP enabled, two-way audio ready                  |
-| **Mind**          | Persona prompt bank brewing in `docs/`, Realtime stack TBD                  |
-| **Control Tower** | FastAPI skeleton live via `uv run uvicorn …`, env-driven config + `/status` |
-| **Bridge**        | Node-based `eufy-security-server` handles PTZ, talkback, property toggles   |
-| **Vision Loop**   | Planned: RTSP → OpenCV/FFmpeg pipeline with event hooks                     |
-| **Voice Loop**    | Planned: Realtime TTS + talkback streaming with AAC glue                    |
-| **Persona**       | Narrative + etiquette captured; sass quota remains high                     |
+| Element           | Status                                                                                     |
+| ----------------- | ------------------------------------------------------------------------------------------ |
+| **Body**          | Eufy S350 camera paired, RTSP enabled, two-way audio ready                                 |
+| **Mind**          | Persona prompt bank brewing in `docs/`, Realtime stack TBD                                 |
+| **Control Tower** | FastAPI skeleton live via CLI (`python -m control_tower`), logging + scheduler + `/status` |
+| **Bridge**        | Node-based `eufy-security-server` handles PTZ, talkback, property toggles                  |
+| **Vision Loop**   | RTSP motion detector (OpenCV) emitting events into Control Tower                           |
+| **Voice Loop**    | Planned: Realtime TTS + talkback streaming with AAC glue                                   |
+| **Persona**       | Narrative + etiquette captured; sass quota remains high                                    |
 
 ## State of the Dojo
 
 - Camera is paired, streaming, and obeys pan/tilt rituals (see `docs/reference/s350-control-reference.md`).
 - Repo carries embodiment manifesto, architecture notes, and Control Tower plan (`docs/little-wan-embodiment.md`, `docs/control-tower-plan.md`).
 - Environment loader script preps `.env` secrets (`scripts/load_env.sh`).
-- `uv` project initialized with Python 3.12, `.venv`, and `fastapi`/`uvicorn` dependencies pinned in `pyproject.toml`.
+- `uv` project initialized with Python 3.12, `.venv`, and core deps (`fastapi`, `uvicorn`, `opencv-python-headless`, `httpx`).
 - `eufy-config.json` currently holds local credentials; treat like a temporary secret vault and do not commit anywhere public.
-- Control Tower skeleton now connects to bridge, exposes `/events`, and emits stubbed vision motion events.
-- Next moves: implement genuine vision/audio providers and ritual automation.
+- Control Tower skeleton now connects to bridge, exposes `/events`, emits motion + heartbeat events, and ships with CLI/health checks.
+- Next moves: hook to live bridge events, implement audio loops, and automate rituals.
 
 ## Quickstart for Apprentice Builders
 
@@ -47,11 +47,11 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
    ffmpeg -hide_banner -loglevel error -rtsp_transport tcp \
      -i "rtsp://$S350_RTSP_USER:$S350_RTSP_PASS@$S350_IP/live0" -t 5 -f null -
    ```
-7. Smoke the Control Tower skeleton:
+7. Smoke the Control Tower skeleton via CLI:
    ```bash
-   uv run uvicorn control_tower.app:create_app --factory --host 127.0.0.1 --port 9000
+   uv run python -m control_tower
    ```
-   Hit `http://127.0.0.1:9000/status` to confirm it reports `status: ok`.
+   - Hit `http://127.0.0.1:9000/status` or run `uv run python -m control_tower.checks` for a JSON health report.
 8. Keep all secrets (`.env`, `eufy-config.json`) out of commits; rotate credentials after demos because paranoia is a virtue.
 
 ## Repository Map
