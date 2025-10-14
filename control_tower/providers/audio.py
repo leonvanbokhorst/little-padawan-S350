@@ -1,4 +1,4 @@
-"""Audio loop for capturing microphone input and dispatching STT events."""
+"""Audio loop for capturing microphone or mech audio and dispatching STT events."""
 
 from __future__ import annotations
 

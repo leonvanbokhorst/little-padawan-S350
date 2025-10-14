@@ -31,6 +31,7 @@ class ControlTowerConfig:
     bridge_token: Optional[str] = None
     rtsp_url: Optional[str] = None
     device_serial: Optional[str] = None
+    audio_source: str = "host"
     llm: ProviderConfig = field(default_factory=ProviderConfig)
     stt: ProviderConfig = field(
         default_factory=lambda: ProviderConfig(kind="faster-whisper")
@@ -82,6 +83,9 @@ def load_config(overrides: Optional[Dict[str, str]] = None) -> ControlTowerConfi
     config.bridge_token = env("BRIDGE_TOKEN", config.bridge_token)
     config.rtsp_url = env("RTSP_URL", config.rtsp_url)
     config.device_serial = env("DEVICE_SERIAL", config.device_serial)
+    config.audio_source = (
+        env("AUDIO_SOURCE", config.audio_source) or config.audio_source
+    ).lower()
     config.log_json = env("LOG_JSON", "false").lower() == "true"
 
     config.llm = ProviderConfig(
