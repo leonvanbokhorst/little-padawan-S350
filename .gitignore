@@ -7,4 +7,6 @@ eufy-config.json
 .pytest_cache
 .ruff_cache
 .cursorrules
-/captures   
+/captures
+.venv
+uv.lock

@@ -6,44 +6,61 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
 
 ## Project Snapshot
 
-| Element           | Status                                                                    |
-| ----------------- | ------------------------------------------------------------------------- |
-| **Body**          | Eufy S350 camera paired, RTSP enabled, two-way audio ready                |
-| **Mind**          | OpenAI Realtime brain + persona prompt bank brewing in `docs/`            |
-| **Control Tower** | Python service in design phase, orchestrates vision/audio/rituals         |
-| **Bridge**        | Node-based `eufy-security-server` handles PTZ, talkback, property toggles |
-| **Vision Loop**   | Planned: RTSP → OpenCV/FFmpeg pipeline with event hooks                   |
-| **Voice Loop**    | Planned: Realtime TTS + talkback streaming with AAC glue                  |
-| **Persona**       | Narrative + etiquette captured; sass quota remains high                   |
+| Element           | Status                                                                      |
+| ----------------- | --------------------------------------------------------------------------- |
+| **Body**          | Eufy S350 camera paired, RTSP enabled, two-way audio ready                  |
+| **Mind**          | Persona prompt bank brewing in `docs/`, Realtime stack TBD                  |
+| **Control Tower** | FastAPI skeleton live via `uv run uvicorn …`, env-driven config + `/status` |
+| **Bridge**        | Node-based `eufy-security-server` handles PTZ, talkback, property toggles   |
+| **Vision Loop**   | Planned: RTSP → OpenCV/FFmpeg pipeline with event hooks                     |
+| **Voice Loop**    | Planned: Realtime TTS + talkback streaming with AAC glue                    |
+| **Persona**       | Narrative + etiquette captured; sass quota remains high                     |
 
 ## State of the Dojo
 
 - Camera is paired, streaming, and obeys pan/tilt rituals (see `docs/reference/s350-control-reference.md`).
-- repo carries embodiment manifesto and architecture notes (`docs/little-wan-embodiment.md`).
+- Repo carries embodiment manifesto, architecture notes, and Control Tower plan (`docs/little-wan-embodiment.md`, `docs/control-tower-plan.md`).
 - Environment loader script preps `.env` secrets (`scripts/load_env.sh`).
+- `uv` project initialized with Python 3.12, `.venv`, and `fastapi`/`uvicorn` dependencies pinned in `pyproject.toml`.
 - `eufy-config.json` currently holds local credentials; treat like a temporary secret vault and do not commit anywhere public.
-- Next major move: stand up the Python Control Tower skeleton and wire it to the Node bridge.
+- Next moves: connect the Control Tower to the Eufy bridge, wire the event bus, and spin up vision/audio providers.
 
 ## Quickstart for Apprentice Builders
 
 1. Duplicate `.env.example` → `.env`, then run `source scripts/load_env.sh` to export camera creds.
-2. Install local tooling: `brew install node ffmpeg`, `npm install -g eufy-security-ws`.
-3. Launch the Node bridge:
+2. Install local tooling: `brew install node ffmpeg`, `npm install -g eufy-security-ws`, `brew install uv` (if missing).
+3. Sync Python deps (uses `.python-version` pinned to 3.12):
+   ```bash
+   uv sync
+   ```
+4. Activate the virtualenv when working locally:
+   ```bash
+   source .venv/bin/activate
+   ```
+5. Launch the Node bridge:
    ```bash
    /Users/leonvanbokhorst/.npm-global/bin/eufy-security-server --port 3000 --config /Users/leonvanbokhorst/repos/little-padawan-S350/eufy-config.json
    ```
-4. Validate the RTSP feed:
+6. Validate the RTSP feed:
    ```bash
    ffmpeg -hide_banner -loglevel error -rtsp_transport tcp \
      -i "rtsp://$S350_RTSP_USER:$S350_RTSP_PASS@$S350_IP/live0" -t 5 -f null -
    ```
-5. Keep all secrets (`.env`, `eufy-config.json`) out of commits; rotate credentials after demos because paranoia is a virtue.
+7. Smoke the Control Tower skeleton:
+   ```bash
+   uv run uvicorn control_tower.app:create_app --factory --host 127.0.0.1 --port 9000
+   ```
+   Hit `http://127.0.0.1:9000/status` to confirm it reports `status: ok`.
+8. Keep all secrets (`.env`, `eufy-config.json`) out of commits; rotate credentials after demos because paranoia is a virtue.
 
 ## Repository Map
 
 - `docs/little-wan-embodiment.md` – narrative + full embodiment blueprint.
 - `docs/reference/` – control recipes, architecture comparisons, AI stack options.
 - `scripts/load_env.sh` – convenience loader for local `.env` rituals.
+- `docs/start-procedure.md` – step-by-step boot ritual including uv sync + Control Tower smoke test.
+- `docs/control-tower-plan.md` – architecture, modules, and TODOs for the Control Tower skeleton.
+- `docs/implementation-plan-today.md` – current sprint focus.
 - `narrative.md` – ongoing story arc between Master Lonn and yours truly.
 
 ## Roadmap Beats

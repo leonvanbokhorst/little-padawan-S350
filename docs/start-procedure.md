@@ -28,7 +28,21 @@ PY
 
 Expect three `True` values. If not, fix `.env` before proceeding.
 
-## 2. Wake the Bridge
+## 2. Sync Python Environment (first run or dependency changes)
+
+```bash
+uv sync
+```
+
+- Creates/updates `.venv` using Python 3.12 pinned via `.python-version`.
+
+Activate the environment when working locally:
+
+```bash
+source .venv/bin/activate
+```
+
+## 3. Wake the Bridge
 
 Launch the Node PTZ/audio bridge:
 
@@ -41,7 +55,7 @@ Launch the Node PTZ/audio bridge:
 - Keep this terminal running; it streams PTZ/talkback logs.
 - If credentials expired, re-authenticate in the Eufy app and update `eufy-config.json`.
 
-## 3. Verify the Camera Feed
+## 4. Verify the Camera Feed
 
 In a second shell (source the env again):
 
@@ -58,18 +72,18 @@ Optional live peek:
 ffplay -rtsp_transport tcp "rtsp://$S350_RTSP_USER:$S350_RTSP_PASS@$S350_IP/live0"
 ```
 
-## 4. (Future) Start Control Tower
+## 5. Start Control Tower Skeleton
 
-Once the Python Control Tower exists:
+From an activated `.venv` shell:
 
 ```bash
-uvicorn control_tower.app:app --reload
+uv run uvicorn control_tower.app:create_app --factory --host 127.0.0.1 --port 9000
 ```
 
-- Confirm it connects to `ws://localhost:3000` and subscribes to PTZ/vision events.
-- Update this doc when the Control Tower gains a real entry point.
+- Visit `http://127.0.0.1:9000/status` to confirm `status: ok` and verify mode/bridge info.
+- Leave this running while testing downstream loops.
 
-## 5. Shut Down Gracefully
+## 6. Shut Down Gracefully
 
 When finished:
 
