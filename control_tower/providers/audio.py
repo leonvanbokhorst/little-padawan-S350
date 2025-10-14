@@ -164,7 +164,7 @@ def _build_transcriber(config: ProviderConfig) -> BaseTranscriber:
         model_size = config.options.get("model", "base")
         device = config.options.get("device")
         compute_type = config.options.get("compute_type")
-        download_root = config.options.get("download_root")
+        download_root = config.options.get("download_root", ".control_tower/models")
         cpu_threads_raw = config.options.get("cpu_threads")
         beam_size_raw = config.options.get("beam_size")
         language = config.options.get("language")

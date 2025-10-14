@@ -20,7 +20,7 @@
 
 ## 4. Persona & Audio Wiring
 
-- Establish Realtime STT/TTS pipeline (local Faster Whisper baseline, swappable to OpenAI/Gemini) with persona prompt pulled from `narrative.md`.
+- Establish Realtime STT/TTS pipeline (local Faster Whisper baseline caching models under `.control_tower/models`, swappable to OpenAI/Gemini) with persona prompt pulled from `narrative.md`.
 - Route synthesized audio through bridge adapter talkback channel; enforce rate limiting and queue management.
 - Maintain short-term memory buffer (recent transcripts, rituals triggered) to keep responses contextual and witty.
 

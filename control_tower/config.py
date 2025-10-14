@@ -88,9 +88,11 @@ def load_config(overrides: Optional[Dict[str, str]] = None) -> ControlTowerConfi
         kind=env("LLM_KIND", config.llm.kind) or config.llm.kind,
         options=_load_json_env(f"{CONFIG_ENV_PREFIX}LLM_OPTIONS"),
     )
+    stt_options = _load_json_env(f"{CONFIG_ENV_PREFIX}STT_OPTIONS")
+    stt_options.setdefault("download_root", ".control_tower/models")
     config.stt = ProviderConfig(
         kind=env("STT_KIND", config.stt.kind) or config.stt.kind,
-        options=_load_json_env(f"{CONFIG_ENV_PREFIX}STT_OPTIONS"),
+        options=stt_options,
     )
     config.tts = ProviderConfig(
         kind=env("TTS_KIND", config.tts.kind) or config.tts.kind,

@@ -56,7 +56,7 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
 
 ## Audio Loop Configuration
 
-- **Default STT**: Local Faster Whisper model (`CONTROL_TOWER_STT_KIND=faster-whisper`) operating on the host mic. Tune latency/accuracy via `CONTROL_TOWER_STT_OPTIONS` JSON, e.g. `{"model":"small","device":"cpu","beam_size":3}`.
+- **Default STT**: Local Faster Whisper model (`CONTROL_TOWER_STT_KIND=faster-whisper`) operating on the host mic. Tune latency/accuracy via `CONTROL_TOWER_STT_OPTIONS` JSON, e.g. `{"model":"small","device":"cpu","beam_size":3,"download_root":".control_tower/models"}`.
 - **Provider swap**: Flip to OpenAI (or future providers) by setting `CONTROL_TOWER_STT_KIND=openai` and supplying API credentials plus options like `{"model":"gpt-4o-mini-transcribe"}`.
 - **Dependencies**: Faster Whisper ships in the project deps. Remote engines may need extra installs (e.g. `pip install openai`) before launching the tower.
 - **Audio source**: Currently listens to the host microphone; roadmap item will ingest the S350 livestream audio stream directly from the bridge.

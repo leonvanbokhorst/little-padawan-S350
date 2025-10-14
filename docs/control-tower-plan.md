@@ -84,7 +84,7 @@
 
 #### `audio.py`
 
-- Current STT: local **Faster Whisper** worker chewing host mic audio and emitting `audio.transcription` events.
+- Current STT: local **Faster Whisper** worker chewing host mic audio and emitting `audio.transcription` events (models cached under `.control_tower/models`).
 - Provider tree pluggable via config; future swap to S350 livestream input + remote STT targets is planned.
 - Handle TTS + talkback streaming via bridge helper.
 
