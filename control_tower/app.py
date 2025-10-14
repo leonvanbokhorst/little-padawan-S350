@@ -24,7 +24,8 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
     app.state.event_bus = EventBus()
     app.state.bridge_client = BridgeClient(config.bridge_url, config.bridge_token)
     app.state.vision_loop = VisionLoop(
-        app.state.event_bus, enabled=bool(config.rtsp_url)
+        app.state.event_bus,
+        config.rtsp_url,
     )
 
     async def bridge_event_handler(payload: Dict[str, Any]) -> None:
