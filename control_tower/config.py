@@ -29,6 +29,7 @@ class ControlTowerConfig:
     bridge_url: str = "ws://localhost:3000"
     bridge_token: Optional[str] = None
     rtsp_url: Optional[str] = None
+    device_serial: Optional[str] = None
     llm: ProviderConfig = field(default_factory=ProviderConfig)
     stt: ProviderConfig = field(default_factory=lambda: ProviderConfig(kind="whisper"))
     tts: ProviderConfig = field(
@@ -77,6 +78,7 @@ def load_config(overrides: Optional[Dict[str, str]] = None) -> ControlTowerConfi
     config.bridge_url = env("BRIDGE_URL", config.bridge_url) or config.bridge_url
     config.bridge_token = env("BRIDGE_TOKEN", config.bridge_token)
     config.rtsp_url = env("RTSP_URL", config.rtsp_url)
+    config.device_serial = env("DEVICE_SERIAL", config.device_serial)
     config.log_json = env("LOG_JSON", "false").lower() == "true"
 
     config.llm = ProviderConfig(

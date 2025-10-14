@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Dict, Optional
 
 import websockets
-from websockets.client import WebSocketClientProtocol
 
 
 LOGGER = logging.getLogger(__name__)
@@ -28,46 +28,80 @@ class BridgeClient:
         self.url = url
         self.token = token
         self.reconnect_delay = reconnect_delay
-        self._ws: Optional[WebSocketClientProtocol] = None
+        self._ws = None
         self._lock = asyncio.Lock()
         self._recv_task: Optional[asyncio.Task[None]] = None
         self._running = False
         self._message_id = 0
+        self._devices: dict[str, dict[str, Any]] = {}
+        self._ready = asyncio.Event()
+
+    @property
+    def devices(self) -> Dict[str, Dict[str, Any]]:
+        return copy.deepcopy(self._devices)
+
+    async def wait_until_ready(self, timeout: float | None = None) -> None:
+        if timeout is None:
+            await self._ready.wait()
+        else:
+            await asyncio.wait_for(self._ready.wait(), timeout)
 
     async def connect(self, on_event: BridgeEventCallback) -> None:
-        """Start background task maintaining bridge connection."""
-
         if self._running:
             return
         self._running = True
         self._recv_task = asyncio.create_task(self._run(on_event))
 
     async def close(self) -> None:
-        """Terminate the connection and background task."""
-
         self._running = False
+        self._ready.clear()
         async with self._lock:
-            if self._ws and not self._ws.closed:
-                await self._ws.close()
+            ws = self._ws
+            self._ws = None
+        if ws:
+            await ws.close()
         if self._recv_task:
             await self._recv_task
+            self._recv_task = None
+
+    async def start_listening(
+        self, *, connect_cloud: bool = True, poll_refresh: bool = True
+    ) -> None:
+        await self.wait_until_ready()
+        await self.request("start_listening")
+        if connect_cloud:
+            await self.request("driver.connect")
+        if poll_refresh:
+            await self.request("driver.poll_refresh")
+
+    async def ensure_station_metadata(
+        self, serial_number: str, *, include_metadata: bool = True
+    ) -> None:
+        await self.wait_until_ready()
+        await self.request("station.connect", serialNumber=serial_number)
+        await self.request("station.get_properties", serialNumber=serial_number)
+        if include_metadata:
+            await self.request(
+                "station.get_properties_metadata", serialNumber=serial_number
+            )
 
     async def send_payload(self, payload: dict[str, Any]) -> None:
-        """Send a raw payload to the bridge (messageId optional)."""
-
+        try:
+            await self.wait_until_ready(timeout=10)
+        except asyncio.TimeoutError as exc:
+            raise RuntimeError("BridgeClient not connected") from exc
         async with self._lock:
-            if not self._ws or self._ws.closed:
+            if not self._ws:
                 raise RuntimeError("BridgeClient not connected")
             await self._ws.send(json.dumps(payload))
 
     async def request(self, command: str, **params: Any) -> None:
-        """Send a command request to the bridge."""
-
         payload: dict[str, Any] = {
             "command": command,
             "messageId": self._next_message_id(),
         }
         payload.update(params)
+        LOGGER.debug("Bridge request %s", payload)
         await self.send_payload(payload)
 
     async def pan_and_tilt(self, serial_number: str, direction: int) -> None:
@@ -101,13 +135,14 @@ class BridgeClient:
                 LOGGER.info("Connecting to bridge %s", self.url)
                 async with websockets.connect(
                     self.url,
-                    extra_headers=headers,
+                    additional_headers=headers if headers else None,
                     ping_interval=20,
                     ping_timeout=20,
                     close_timeout=5,
                 ) as ws:
                     async with self._lock:
                         self._ws = ws
+                        self._ready.set()
                     LOGGER.info("Bridge connected")
                     async for message in ws:
                         try:
@@ -116,10 +151,12 @@ class BridgeClient:
                             LOGGER.warning("Bridge sent non-JSON payload: %s", message)
                             continue
                         normalized = self._normalize_message(data)
+                        self._track_devices(normalized)
                         await on_event(normalized)
             except (OSError, websockets.WebSocketException) as exc:
                 LOGGER.warning("Bridge connection error: %s", exc)
             finally:
+                self._ready.clear()
                 async with self._lock:
                     self._ws = None
                 if self._running:
@@ -128,9 +165,30 @@ class BridgeClient:
                     )
                     await asyncio.sleep(self.reconnect_delay)
 
-    def _next_message_id(self) -> int:
+    def _track_devices(self, message: dict[str, Any]) -> None:
+        result = message.get("result")
+        if isinstance(result, dict):
+            serial = result.get("serialNumber") or result.get("deviceSerialNumber")
+            if serial:
+                device = self._devices.setdefault(serial, {})
+                props = result.get("properties")
+                if isinstance(props, dict):
+                    device.setdefault("properties", {}).update(props)
+                metadata = result.get("propertiesMetadata") or result.get("metadata")
+                if isinstance(metadata, dict):
+                    device.setdefault("propertiesMetadata", {}).update(metadata)
+        event = message.get("event")
+        if isinstance(event, dict):
+            serial = (
+                event.get("serialNumber") or event.get("device") or event.get("station")
+            )
+            if serial:
+                device = self._devices.setdefault(serial, {})
+                device.setdefault("events", []).append(event)
+
+    def _next_message_id(self) -> str:
         self._message_id += 1
-        return self._message_id
+        return str(self._message_id)
 
     def _normalize_message(self, data: Any) -> dict[str, Any]:
         if not isinstance(data, dict):
@@ -145,6 +203,7 @@ class BridgeClient:
                 event.get("eventType")
                 or event.get("event_type")
                 or event.get("name")
+                or event.get("event")
                 or "event"
             )
             sanitized = str(event_type).replace(":", ".")
@@ -153,7 +212,7 @@ class BridgeClient:
         elif msg_type == "result":
             command = data.get("command", "unknown")
             normalized["type"] = f"bridge.result.{command}"
-            normalized["result"] = data
+            normalized["result"] = data.get("result", {})
         elif msg_type:
             normalized["type"] = f"bridge.{msg_type}"
         return normalized

@@ -4,8 +4,7 @@ All notable sass and mech upgrades will be documented here.
 
 ## 2025-10-14
 
-- Bootstrapped Control Tower CLI (`python -m control_tower`) with logging config, scheduler heartbeats, and `/status` health endpoint.
-- Wired OpenCV-based RTSP motion detection into the event bus; vision loop now emits `vision.motion` events.
-- Upgraded BridgeClient with normalized events and helper commands; ready for live `eufy-security-server` integration.
-- Added health check CLI (`python -m control_tower.checks`) for quick status probes.
-- Updated startup ritual docs (`docs/start-procedure.md`) and README snapshots to match the new workflow.
+- Control Tower now auto-subscribes to the bridge (`start_listening`, `driver.connect`, `driver.poll_refresh`) and logs `bridge.event.*` detections.
+- BridgeClient stores live device metadata/events, exposes known devices on `/status`, and powers rituals without manual scripts.
+- Vision loop still streaming RTSP motion; next stop: fuse audio loops + persona reactions.
+- Docs refreshed (`README.md`, `docs/start-procedure.md`) to reflect the hands-free bridge wiring.

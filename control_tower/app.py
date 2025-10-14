@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from datetime import datetime
 from typing import Any, Dict
 
@@ -13,6 +15,8 @@ from .logging import configure_logging
 from .providers.bridge import BridgeClient
 from .scheduler import Scheduler
 from .vision import VisionLoop
+
+LOGGER = logging.getLogger(__name__)
 
 
 def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
@@ -34,9 +38,10 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
     )
 
     async def bridge_event_handler(payload: Dict[str, Any]) -> None:
-        event = Event(
-            type=payload.get("type", "bridge.raw"), payload=payload, source="bridge"
-        )
+        event_type = payload.get("type", "bridge.raw")
+        event = Event(type=event_type, payload=payload, source="bridge")
+        if event_type.startswith("bridge.event"):
+            LOGGER.info("Bridge event %s", event_type)
         app.state.event_bus.publish(event)
 
     app.state.scheduler.register(
@@ -54,11 +59,21 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
                 datetime.utcnow() - app.state.started_at
             ).total_seconds(),
             "bridge_url": app.state.config.bridge_url,
+            "devices": list(app.state.bridge_client.devices.keys()),
         }
 
     @app.on_event("startup")
     async def on_startup() -> None:
+        LOGGER.info("Starting Control Tower in %s mode", app.state.config.mode)
         await app.state.bridge_client.connect(bridge_event_handler)
+        await app.state.bridge_client.start_listening()
+        if app.state.config.device_serial:
+            LOGGER.info(
+                "Ensuring metadata for device %s", app.state.config.device_serial
+            )
+            await app.state.bridge_client.ensure_station_metadata(
+                app.state.config.device_serial
+            )
         await app.state.vision_loop.start()
         await app.state.scheduler.start()
 
