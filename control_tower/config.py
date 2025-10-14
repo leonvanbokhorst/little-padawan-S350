@@ -32,7 +32,9 @@ class ControlTowerConfig:
     rtsp_url: Optional[str] = None
     device_serial: Optional[str] = None
     llm: ProviderConfig = field(default_factory=ProviderConfig)
-    stt: ProviderConfig = field(default_factory=lambda: ProviderConfig(kind="whisper"))
+    stt: ProviderConfig = field(
+        default_factory=lambda: ProviderConfig(kind="faster-whisper")
+    )
     tts: ProviderConfig = field(
         default_factory=lambda: ProviderConfig(kind="openai-tts")
     )

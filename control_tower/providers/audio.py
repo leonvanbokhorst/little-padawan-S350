@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
-import math
 import queue
 import threading
 import time
@@ -40,7 +39,7 @@ def _rms_amplitude(buffer: bytes) -> float:
         return 0.0
     normalized = samples.astype(np.float32) / 32768.0
     mean_square = float(np.mean(normalized**2))
-    return math.sqrt(mean_square)
+    return float(np.sqrt(mean_square))
 
 
 def _to_wav_bytes(audio: bytes, *, sample_rate: int, channels: int = 1) -> bytes:
@@ -75,6 +74,62 @@ class DebugTranscriber(BaseTranscriber):
         return f"[audio chunk ~{duration:.2f}s, rms={rms:.3f}]"
 
 
+class FasterWhisperTranscriber(BaseTranscriber):
+    name = "faster_whisper"
+
+    def __init__(
+        self,
+        model_size: str = "medium",
+        *,
+        device: str | None = None,
+        compute_type: str | None = None,
+        download_root: str | None = None,
+        cpu_threads: int | None = None,
+        beam_size: int = 1,
+        language: str | None = None,
+    ) -> None:
+        from faster_whisper import WhisperModel  # type: ignore
+
+        kwargs: dict[str, Any] = {}
+        if device:
+            kwargs["device"] = device
+        if compute_type:
+            kwargs["compute_type"] = compute_type
+        else:
+            if not device or device.lower() == "cpu":
+                kwargs["compute_type"] = "int8"
+            else:
+                kwargs["compute_type"] = "float16"
+        if download_root:
+            kwargs["download_root"] = download_root
+        if cpu_threads:
+            kwargs["cpu_threads"] = cpu_threads
+        self._model = WhisperModel(model_size, **kwargs)
+        self._beam_size = max(1, beam_size)
+        self._language = language
+
+    async def transcribe(
+        self, audio: bytes, sample_rate: int, metadata: Optional[dict[str, Any]] = None
+    ) -> Optional[str]:
+        wav_bytes = _to_wav_bytes(audio, sample_rate=sample_rate)
+
+        def run_transcription() -> Optional[str]:
+            from faster_whisper.audio import decode_audio  # type: ignore
+
+            pcm, rate = decode_audio(io.BytesIO(wav_bytes))
+            segments, _ = self._model.transcribe(
+                pcm,
+                beam_size=self._beam_size,
+                language=self._language,
+            )
+            text_parts = [segment.text for segment in segments if segment.text]
+            if not text_parts:
+                return None
+            return " ".join(text_parts).strip()
+
+        return await asyncio.to_thread(run_transcription)
+
+
 class OpenAITranscriber(BaseTranscriber):
     name = "openai"
 
@@ -105,25 +160,61 @@ class OpenAITranscriber(BaseTranscriber):
 
 def _build_transcriber(config: ProviderConfig) -> BaseTranscriber:
     kind = (config.kind or "").lower()
-    if kind in {"openai", "whisper"} and AsyncOpenAI is not None:
+    if kind in {"faster-whisper", "faster_whisper", "whisper"}:
+        model_size = config.options.get("model", "base")
+        device = config.options.get("device")
+        compute_type = config.options.get("compute_type")
+        download_root = config.options.get("download_root")
+        cpu_threads_raw = config.options.get("cpu_threads")
+        beam_size_raw = config.options.get("beam_size")
+        language = config.options.get("language")
+        cpu_threads: int | None = None
+        beam_size = 1
+        if cpu_threads_raw is not None:
+            try:
+                cpu_threads = int(cpu_threads_raw)
+            except ValueError:
+                LOGGER.warning("Invalid cpu_threads option '%s'", cpu_threads_raw)
+        if beam_size_raw is not None:
+            try:
+                beam_size = max(1, int(beam_size_raw))
+            except ValueError:
+                LOGGER.warning("Invalid beam_size option '%s'", beam_size_raw)
+        try:
+            return FasterWhisperTranscriber(
+                model_size=model_size,
+                device=device,
+                compute_type=compute_type,
+                download_root=download_root,
+                cpu_threads=cpu_threads,
+                beam_size=beam_size,
+                language=language,
+            )
+        except Exception as exc:  # pragma: no cover - model load errors
+            LOGGER.exception("Failed to initialize FasterWhisper model: %s", exc)
+            LOGGER.warning("Falling back to debug transcriber")
+    elif kind in {"openai", "gpt"}:
         model = config.options.get("model", "gpt-4o-mini-transcribe")
-        timeout = config.options.get("timeout")
-        try:
-            timeout_value = float(timeout) if timeout is not None else None
-        except (TypeError, ValueError):
-            timeout_value = None
-        try:
-            return OpenAITranscriber(model=model, timeout=timeout_value)
-        except RuntimeError as exc:
-            LOGGER.warning("Falling back to debug transcriber: %s", exc)
+        timeout_raw = config.options.get("timeout")
+        timeout: float | None = None
+        if timeout_raw is not None:
+            try:
+                timeout = float(timeout_raw)
+            except ValueError:
+                LOGGER.warning("Invalid timeout option '%s'", timeout_raw)
+        if AsyncOpenAI is None:
+            LOGGER.warning(
+                "STT provider '%s' requested but openai package not installed. Using debug transcriber.",
+                config.kind,
+            )
+        else:
+            try:
+                return OpenAITranscriber(model=model, timeout=timeout)
+            except RuntimeError as exc:  # pragma: no cover - optional path
+                LOGGER.warning("OpenAI transcriber initialization failed: %s", exc)
     if kind == "disabled":
         LOGGER.info("STT provider disabled via configuration")
         return DebugTranscriber()
-    if AsyncOpenAI is None and kind in {"openai", "whisper"}:
-        LOGGER.warning(
-            "STT provider '%s' requested but openai package not installed. Using debug transcriber.",
-            config.kind,
-        )
     return DebugTranscriber()
 
 

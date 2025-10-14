@@ -84,8 +84,8 @@
 
 #### `audio.py`
 
-- Capture host microphone audio for now; emit `audio.transcription` events onto the bus.
-- Future: ingest S350 livestream audio frames from the bridge instead of the host mic.
+- Current STT: local **Faster Whisper** worker chewing host mic audio and emitting `audio.transcription` events.
+- Provider tree pluggable via config; future swap to S350 livestream input + remote STT targets is planned.
 - Handle TTS + talkback streaming via bridge helper.
 
 #### `persona.py`
@@ -134,7 +134,7 @@
 - [x] Add CLI entry to start service (`python -m control_tower`).
 - [x] Write placeholder tests or smoke checks (import, config load).
 - [x] Update `START_PROCEDURE.md` with Control Tower launch command once implemented.
-- [x] Implement audio loop (capture + STT) emitting `audio.transcription` events.
+- [x] Implement audio loop (capture + STT) emitting `audio.transcription` events (Faster Whisper local).
 - [ ] Ingest S350 livestream audio into STT pipeline (replace host mic capture).
 - [ ] Add TTS/talkback pipeline with `bridge.device_command` helper.
 - [x] Surface audio state in `/status` and docs.

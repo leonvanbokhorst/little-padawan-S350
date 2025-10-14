@@ -13,7 +13,7 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
 | **Control Tower** | FastAPI skeleton auto-starts bridge subscriptions (`start_listening` + heartbeats) with `/status` |
 | **Bridge**        | Node-based `eufy-security-server` streams live device events into the Control Tower               |
 | **Vision Loop**   | RTSP motion detector (OpenCV) emitting events into Control Tower                                  |
-| **Voice Loop**    | Audio capture + STT loop emitting `audio.transcription` events; TTS/talkback next                 |
+| **Voice Loop**    | Faster Whisper STT on host mic emitting `audio.transcription` events; talkback/TTS next           |
 | **Persona**       | Narrative + etiquette captured; sass quota remains high                                           |
 
 ## State of the Dojo
@@ -21,7 +21,7 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
 - Camera is paired, streaming, and obeys pan/tilt rituals (see `docs/reference/s350-control-reference.md`).
 - Repo carries embodiment manifesto, architecture notes, and Control Tower plan (`docs/little-wan-embodiment.md`, `docs/control-tower-plan.md`).
 - Environment loader script preps `.env` secrets (`scripts/load_env.sh`).
-- `uv` project initialized with Python 3.12, `.venv`, and core deps (`fastapi`, `uvicorn`, `opencv-python-headless`, `httpx`, `sounddevice`).
+- `uv` project initialized with Python 3.12, `.venv`, and core deps (`fastapi`, `uvicorn`, `opencv-python-headless`, `httpx`, `sounddevice`, `faster-whisper`).
 - `eufy-config.json` currently holds local credentials; treat like a temporary secret vault and do not commit anywhere public.
 - Control Tower now auto-subscribes to bridge events (`start_listening`), logs device/person/motion detections, and exposes `/events`.
 - Next moves: wire audio loops, automate rituals, and surface device event history in dashboards/persona responses.
@@ -53,6 +53,13 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
    ```
    - Hit `http://127.0.0.1:9000/status` or run `uv run python -m control_tower.checks` for a JSON health report (shows known device serials).
 8. Keep all secrets (`.env`, `eufy-config.json`) out of commits; rotate credentials after demos because paranoia is a virtue.
+
+## Audio Loop Configuration
+
+- **Default STT**: Local Faster Whisper model (`CONTROL_TOWER_STT_KIND=faster-whisper`) operating on the host mic. Tune latency/accuracy via `CONTROL_TOWER_STT_OPTIONS` JSON, e.g. `{"model":"small","device":"cpu","beam_size":3}`.
+- **Provider swap**: Flip to OpenAI (or future providers) by setting `CONTROL_TOWER_STT_KIND=openai` and supplying API credentials plus options like `{"model":"gpt-4o-mini-transcribe"}`.
+- **Dependencies**: Faster Whisper ships in the project deps. Remote engines may need extra installs (e.g. `pip install openai`) before launching the tower.
+- **Audio source**: Currently listens to the host microphone; roadmap item will ingest the S350 livestream audio stream directly from the bridge.
 
 ## Repository Map
 
