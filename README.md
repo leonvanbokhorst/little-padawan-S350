@@ -13,7 +13,7 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
 | **Control Tower** | FastAPI skeleton auto-starts bridge subscriptions (`start_listening` + heartbeats) with `/status` |
 | **Bridge**        | Node-based `eufy-security-server` streams live device events into the Control Tower               |
 | **Vision Loop**   | RTSP motion detector (OpenCV) emitting events into Control Tower                                  |
-| **Voice Loop**    | Planned: Realtime TTS + talkback streaming with AAC glue                                          |
+| **Voice Loop**    | Audio capture + STT loop emitting `audio.transcription` events; TTS/talkback next                 |
 | **Persona**       | Narrative + etiquette captured; sass quota remains high                                           |
 
 ## State of the Dojo
@@ -21,7 +21,7 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
 - Camera is paired, streaming, and obeys pan/tilt rituals (see `docs/reference/s350-control-reference.md`).
 - Repo carries embodiment manifesto, architecture notes, and Control Tower plan (`docs/little-wan-embodiment.md`, `docs/control-tower-plan.md`).
 - Environment loader script preps `.env` secrets (`scripts/load_env.sh`).
-- `uv` project initialized with Python 3.12, `.venv`, and core deps (`fastapi`, `uvicorn`, `opencv-python-headless`, `httpx`).
+- `uv` project initialized with Python 3.12, `.venv`, and core deps (`fastapi`, `uvicorn`, `opencv-python-headless`, `httpx`, `sounddevice`).
 - `eufy-config.json` currently holds local credentials; treat like a temporary secret vault and do not commit anywhere public.
 - Control Tower now auto-subscribes to bridge events (`start_listening`), logs device/person/motion detections, and exposes `/events`.
 - Next moves: wire audio loops, automate rituals, and surface device event history in dashboards/persona responses.
@@ -47,7 +47,7 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
    ffmpeg -hide_banner -loglevel error -rtsp_transport tcp \
      -i "rtsp://$S350_RTSP_USER:$S350_RTSP_PASS@$S350_IP/live0" -t 5 -f null -
    ```
-7. Smoke the Control Tower skeleton via CLI (auto-connects bridge + emits heartbeats):
+7. Smoke the Control Tower skeleton via CLI (auto-connects bridge + runs vision/audio loops, emits heartbeats):
    ```bash
    uv run python -m control_tower
    ```

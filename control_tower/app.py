@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from .config import ControlTowerConfig, load_config
 from .events import EventBus, Event
 from .logging import configure_logging
+from .providers.audio import AudioLoop
 from .providers.bridge import BridgeClient
 from .scheduler import Scheduler
 from .vision import VisionLoop
@@ -44,6 +45,7 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
         app.state.event_bus,
         config.rtsp_url,
     )
+    app.state.audio_loop = AudioLoop(app.state.event_bus, config.stt)
 
     async def bridge_event_handler(payload: Dict[str, Any]) -> None:
         event_type = payload.get("type", "bridge.raw")
@@ -68,6 +70,11 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
             ).total_seconds(),
             "bridge_url": app.state.config.bridge_url,
             "devices": list(app.state.bridge_client.devices.keys()),
+            "audio": {
+                "available": app.state.audio_loop.available,
+                "running": app.state.audio_loop.is_running,
+                "last_transcription": app.state.audio_loop.last_transcription,
+            },
         }
 
     @app.on_event("startup")
@@ -83,11 +90,13 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
                 app.state.config.device_serial
             )
         await app.state.vision_loop.start()
+        await app.state.audio_loop.start()
         await app.state.scheduler.start()
 
     @app.on_event("shutdown")
     async def on_shutdown() -> None:
         await app.state.scheduler.stop()
+        await app.state.audio_loop.stop()
         await app.state.bridge_client.close()
         await app.state.vision_loop.stop()
 

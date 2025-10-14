@@ -32,7 +32,7 @@
                               │
                               ▼
                  ┌─────────────────────────┐
-                 │    Vision & Audio Loops  │
+                 │   Vision & Audio Loops   │
                  │  (async tasks/services)  │
                  └─────────────────────────┘
 ```
@@ -74,18 +74,19 @@
 #### `bridge.py`
 
 - Async client for `eufy-security-server` WebSocket.
-- Methods: `connect()`, `send_command(...)`, `subscribe_events(callback)`.
-- Includes cooldown + retry logic (exponential backoff).
+- Handles `start_listening`, cloud connect, metadata refresh, and normalized event dispatch.
+- Relies on helper classes (`MessageNormalizer`, `DeviceRegistry`) to keep memory bounded.
 
 #### `vision.py`
 
-- Placeholder for RTSP consumer (OpenCV) hooking into event bus.
-- Supports `start()`, `stop()`, and `on_frame` callbacks.
+- RTSP consumer (OpenCV) hooking into event bus.
+- Time-based frame throttling + reconnect-on-failure logic.
 
 #### `audio.py`
 
-- Stub interface for STT/TTS providers based on config.
-- Methods: `transcribe_stream()`, `speak(text, voice)`.
+- Capture host microphone audio for now; emit `audio.transcription` events onto the bus.
+- Future: ingest S350 livestream audio frames from the bridge instead of the host mic.
+- Handle TTS + talkback streaming via bridge helper.
 
 #### `persona.py`
 
@@ -105,6 +106,7 @@
 
 - `python -m control_tower` → start FastAPI service (uses Uvicorn factory).
 - `python -m control_tower.checks` → health diagnostics hitting `/status`.
+- Future: `python -m control_tower.audio` for isolated audio loop smoke tests.
 
 ## 4. Startup Sequence
 
@@ -113,7 +115,7 @@
 3. Connect to Eufy bridge (WebSocket) and register event handlers.
 4. Launch FastAPI app (Uvicorn) with background tasks for event processing.
 5. Kick off scheduler heartbeats.
-6. Start vision/audio loops (optional for day one; stub with logs).
+6. Start vision loop (live). Audio loop runs when hardware available.
 
 ## 5. Event Flow Example
 
@@ -131,6 +133,10 @@
 - [x] Draft event bus + stub providers that log calls.
 - [x] Add CLI entry to start service (`python -m control_tower`).
 - [x] Write placeholder tests or smoke checks (import, config load).
-- [ ] Update `START_PROCEDURE.md` with Control Tower launch command once implemented.
+- [x] Update `START_PROCEDURE.md` with Control Tower launch command once implemented.
+- [x] Implement audio loop (capture + STT) emitting `audio.transcription` events.
+- [ ] Ingest S350 livestream audio into STT pipeline (replace host mic capture).
+- [ ] Add TTS/talkback pipeline with `bridge.device_command` helper.
+- [x] Surface audio state in `/status` and docs.
 
 Sass responsibly, log obsessively, and keep the dojo calm.
