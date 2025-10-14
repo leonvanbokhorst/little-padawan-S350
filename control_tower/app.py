@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any, Dict
 
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 from .config import ControlTowerConfig, load_config
 from .events import EventBus, Event
@@ -17,6 +18,13 @@ from .scheduler import Scheduler
 from .vision import VisionLoop
 
 LOGGER = logging.getLogger(__name__)
+
+
+class IngestedEvent(BaseModel):
+    type: str = "manual"
+
+    class Config:
+        extra = "allow"
 
 
 def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
@@ -84,11 +92,12 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
         await app.state.vision_loop.stop()
 
     @app.post("/events")
-    async def ingest_event(event: Dict[str, Any]) -> Dict[str, str]:
+    async def ingest_event(event: IngestedEvent) -> Dict[str, str]:
+        payload = event.dict()
         app.state.event_bus.publish(
-            Event(type=event.get("type", "manual"), payload=event, source="manual")
+            Event(type=event.type, payload=payload, source="manual")
         )
-        return {"received": event.get("type", "unknown")}
+        return {"received": event.type}
 
     return app
 

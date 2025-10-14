@@ -40,7 +40,7 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
    ```
 5. Launch the Node bridge:
    ```bash
-   /Users/leonvanbokhorst/.npm-global/bin/eufy-security-server --port 3000 --config /Users/leonvanbokhorst/repos/little-padawan-S350/eufy-config.json
+   eufy-security-server --port 3000 --config eufy-config.json
    ```
 6. Validate the RTSP feed:
    ```bash

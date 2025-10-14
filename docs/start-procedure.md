@@ -1,6 +1,6 @@
 # START_PROCEDURE — Little Wan Boot Ritual
 
-Use this checklist when spinning Little Wan back online. Assume you are working from `/Users/leonvanbokhorst/repos/little-padawan-S350`.
+Use this checklist when spinning Little Wan back online. Assume you are working from the project root.
 
 ## 0. Preflight
 
@@ -47,9 +47,9 @@ source .venv/bin/activate
 Launch the Node PTZ/audio bridge:
 
 ```bash
-/Users/leonvanbokhorst/.npm-global/bin/eufy-security-server \
+eufy-security-server \
   --port 3000 \
-  --config /Users/leonvanbokhorst/repos/little-padawan-S350/eufy-config.json
+  --config eufy-config.json
 ```
 
 - Keep this terminal running; it streams PTZ/talkback logs.
