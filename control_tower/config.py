@@ -32,6 +32,7 @@ class ControlTowerConfig:
     rtsp_url: Optional[str] = None
     device_serial: Optional[str] = None
     audio_source: str = "host"
+    audio_vad_threshold: float = 0.015
     llm: ProviderConfig = field(default_factory=ProviderConfig)
     stt: ProviderConfig = field(
         default_factory=lambda: ProviderConfig(kind="faster-whisper")
@@ -86,6 +87,17 @@ def load_config(overrides: Optional[Dict[str, str]] = None) -> ControlTowerConfi
     config.audio_source = (
         env("AUDIO_SOURCE", config.audio_source) or config.audio_source
     ).lower()
+    vad_threshold = env("AUDIO_VAD_THRESHOLD")
+    if vad_threshold is not None:
+        try:
+            config.audio_vad_threshold = float(vad_threshold)
+        except ValueError:
+            LOGGER = logging.getLogger(__name__)
+            LOGGER.warning(
+                "Invalid CONTROL_TOWER_AUDIO_VAD_THRESHOLD '%s'; using default %.3f",
+                vad_threshold,
+                config.audio_vad_threshold,
+            )
     config.log_json = env("LOG_JSON", "false").lower() == "true"
 
     config.llm = ProviderConfig(
