@@ -48,8 +48,8 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
     app.state.audio_loop = AudioLoop(
         app.state.event_bus,
         config.stt,
-        config.audio_vad_threshold,
-        config.audio_source
+        audio_source=config.audio_source,
+        vad_threshold=config.audio_vad_threshold,
     )
 
     async def bridge_event_handler(payload: Dict[str, Any]) -> None:
@@ -57,6 +57,8 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
         event = Event(type=event_type, payload=payload, source="bridge")
         if event_type.startswith("bridge.event"):
             LOGGER.info("Bridge event %s", event_type)
+        if config.audio_source == "bridge":
+            app.state.audio_loop.handle_bridge_event(payload)
         app.state.event_bus.publish(event)
 
     app.state.scheduler.register(
@@ -67,6 +69,8 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
 
     @app.get("/status")
     async def status() -> Dict[str, Any]:
+        audio_state = app.state.audio_loop.snapshot()
+
         return {
             "status": "ok",
             "mode": app.state.config.mode,
@@ -76,14 +80,10 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
             "bridge_url": app.state.config.bridge_url,
             "devices": list(app.state.bridge_client.devices.keys()),
             "audio": {
-                "available": app.state.audio_loop.available,
-                "running": app.state.audio_loop.is_running,
-                # Only expose whether a transcription exists, not its content
-                "has_transcription": bool(app.state.audio_loop.last_transcription),
-                # Optionally, you could expose a sanitized/shortened version:
-                # "last_transcription_preview": (
-                #     app.state.audio_loop.last_transcription[:32] + "..." if app.state.audio_loop.last_transcription else None
-                # ),
+                "available": audio_state.available,
+                "running": audio_state.running,
+                "source": audio_state.source,
+                "has_transcription": audio_state.has_transcription,
             },
         }
 
