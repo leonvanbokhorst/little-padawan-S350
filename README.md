@@ -28,7 +28,8 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
 
 ## Quickstart for Apprentice Builders
 
-1. Duplicate `.env.example` → `.env`, then run `source scripts/load_env.sh` to export camera creds.
+1. Duplicate `.env.example` → `.env` (copy `eufy-config.example.json` → `eufy-config.json` only if you want a head start), then run `source scripts/load_env.sh` to export camera creds.
+   - Pro tip: if `eufy-config.json` is missing, `scripts/load_env.sh` will auto-generate it from your `EUFY_*` env vars.
 2. Install local tooling: `brew install node ffmpeg`, `npm install -g eufy-security-ws`, `brew install uv` (if missing).
 3. Sync Python deps (uses `.python-version` pinned to 3.12):
    ```bash
