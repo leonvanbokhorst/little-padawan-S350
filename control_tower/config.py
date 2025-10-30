@@ -105,7 +105,12 @@ def load_config(overrides: Optional[Dict[str, str]] = None) -> ControlTowerConfi
         options=_load_json_env(f"{CONFIG_ENV_PREFIX}LLM_OPTIONS"),
     )
     stt_options = _load_json_env(f"{CONFIG_ENV_PREFIX}STT_OPTIONS")
-    stt_options.setdefault("download_root", ".control_tower/models")
+    if (
+        "download_root" not in stt_options
+        or stt_options["download_root"] is None
+        or (isinstance(stt_options["download_root"], str) and stt_options["download_root"].strip() == "")
+    ):
+        stt_options["download_root"] = ".control_tower/models"
     config.stt = ProviderConfig(
         kind=env("STT_KIND", config.stt.kind) or config.stt.kind,
         options=stt_options,
