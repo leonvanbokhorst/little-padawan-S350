@@ -31,8 +31,12 @@ class ControlTowerConfig:
     bridge_token: Optional[str] = None
     rtsp_url: Optional[str] = None
     device_serial: Optional[str] = None
+    audio_source: str = "host"
+    audio_vad_threshold: float = 0.015
     llm: ProviderConfig = field(default_factory=ProviderConfig)
-    stt: ProviderConfig = field(default_factory=lambda: ProviderConfig(kind="whisper"))
+    stt: ProviderConfig = field(
+        default_factory=lambda: ProviderConfig(kind="faster-whisper")
+    )
     tts: ProviderConfig = field(
         default_factory=lambda: ProviderConfig(kind="openai-tts")
     )
@@ -80,15 +84,36 @@ def load_config(overrides: Optional[Dict[str, str]] = None) -> ControlTowerConfi
     config.bridge_token = env("BRIDGE_TOKEN", config.bridge_token)
     config.rtsp_url = env("RTSP_URL", config.rtsp_url)
     config.device_serial = env("DEVICE_SERIAL", config.device_serial)
+    config.audio_source = (
+        env("AUDIO_SOURCE", config.audio_source) or config.audio_source
+    ).lower()
+    vad_threshold = env("AUDIO_VAD_THRESHOLD")
+    if vad_threshold is not None:
+        try:
+            config.audio_vad_threshold = float(vad_threshold)
+        except ValueError:
+            LOGGER = logging.getLogger(__name__)
+            LOGGER.warning(
+                "Invalid CONTROL_TOWER_AUDIO_VAD_THRESHOLD '%s'; using default %.3f",
+                vad_threshold,
+                config.audio_vad_threshold,
+            )
     config.log_json = env("LOG_JSON", "false").lower() == "true"
 
     config.llm = ProviderConfig(
         kind=env("LLM_KIND", config.llm.kind) or config.llm.kind,
         options=_load_json_env(f"{CONFIG_ENV_PREFIX}LLM_OPTIONS"),
     )
+    stt_options = _load_json_env(f"{CONFIG_ENV_PREFIX}STT_OPTIONS")
+    if (
+        "download_root" not in stt_options
+        or stt_options["download_root"] is None
+        or (isinstance(stt_options["download_root"], str) and stt_options["download_root"].strip() == "")
+    ):
+        stt_options["download_root"] = ".control_tower/models"
     config.stt = ProviderConfig(
         kind=env("STT_KIND", config.stt.kind) or config.stt.kind,
-        options=_load_json_env(f"{CONFIG_ENV_PREFIX}STT_OPTIONS"),
+        options=stt_options,
     )
     config.tts = ProviderConfig(
         kind=env("TTS_KIND", config.tts.kind) or config.tts.kind,

@@ -1,6 +1,7 @@
 eufy-config.json
 .env
 .eufy-data
+.control_tower/
 .DS_Store
 .vscode
 .idea

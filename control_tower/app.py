@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from .config import ControlTowerConfig, load_config
 from .events import EventBus, Event
 from .logging import configure_logging
+from .providers.audio import AudioLoop
 from .providers.bridge import BridgeClient
 from .scheduler import Scheduler
 from .vision import VisionLoop
@@ -44,12 +45,20 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
         app.state.event_bus,
         config.rtsp_url,
     )
+    app.state.audio_loop = AudioLoop(
+        app.state.event_bus,
+        config.stt,
+        audio_source=config.audio_source,
+        vad_threshold=config.audio_vad_threshold,
+    )
 
     async def bridge_event_handler(payload: Dict[str, Any]) -> None:
         event_type = payload.get("type", "bridge.raw")
         event = Event(type=event_type, payload=payload, source="bridge")
         if event_type.startswith("bridge.event"):
             LOGGER.info("Bridge event %s", event_type)
+        if config.audio_source == "bridge":
+            app.state.audio_loop.handle_bridge_event(payload)
         app.state.event_bus.publish(event)
 
     app.state.scheduler.register(
@@ -60,6 +69,8 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
 
     @app.get("/status")
     async def status() -> Dict[str, Any]:
+        audio_state = app.state.audio_loop.snapshot()
+
         return {
             "status": "ok",
             "mode": app.state.config.mode,
@@ -68,6 +79,12 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
             ).total_seconds(),
             "bridge_url": app.state.config.bridge_url,
             "devices": list(app.state.bridge_client.devices.keys()),
+            "audio": {
+                "available": audio_state.available,
+                "running": audio_state.running,
+                "source": audio_state.source,
+                "has_transcription": audio_state.has_transcription,
+            },
         }
 
     @app.on_event("startup")
@@ -83,11 +100,13 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
                 app.state.config.device_serial
             )
         await app.state.vision_loop.start()
+        await app.state.audio_loop.start()
         await app.state.scheduler.start()
 
     @app.on_event("shutdown")
     async def on_shutdown() -> None:
         await app.state.scheduler.stop()
+        await app.state.audio_loop.stop()
         await app.state.bridge_client.close()
         await app.state.vision_loop.stop()
 
