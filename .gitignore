@@ -16,3 +16,5 @@ __pycache__/
 .venv
 uv.lock
 __pycache__
+
+.control_tower
