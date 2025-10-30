@@ -45,10 +45,12 @@ except PermissionError:
 
 try:
     pathlib.Path(config["persistentDir"]).mkdir(parents=True, exist_ok=True)
-except Exception:
-    pass
+except Exception as exc:
+    sys.stderr.write(
+        f"[load_env] ERROR: Failed to create persistent directory '{config['persistentDir']}': {exc}\n"
+    )
 
-print("[load_env] generated eufy-config.json")
+print("[load_env] generated eufy-config.json", file=sys.stderr)
 PY
   fi
 else
