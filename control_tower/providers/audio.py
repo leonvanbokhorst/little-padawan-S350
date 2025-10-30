@@ -153,9 +153,7 @@ class OpenAITranscriber(BaseTranscriber):
             LOGGER.exception("OpenAI transcription failed: %s", exc)
             return None
         text = getattr(response, "text", None)
-        if isinstance(text, str):
-            return text.strip()
-        return None
+        return text.strip() if isinstance(text, str) else None
 
 
 def _build_transcriber(config: ProviderConfig) -> BaseTranscriber:
