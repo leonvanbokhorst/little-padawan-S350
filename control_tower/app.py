@@ -45,7 +45,12 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
         app.state.event_bus,
         config.rtsp_url,
     )
-    app.state.audio_loop = AudioLoop(app.state.event_bus, config.stt)
+    app.state.audio_loop = AudioLoop(
+        app.state.event_bus,
+        config.stt,
+        config.audio_vad_threshold,
+        config.audio_source
+    )
 
     async def bridge_event_handler(payload: Dict[str, Any]) -> None:
         event_type = payload.get("type", "bridge.raw")
