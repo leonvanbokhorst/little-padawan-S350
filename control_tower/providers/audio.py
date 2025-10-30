@@ -388,6 +388,19 @@ class AudioLoop:
             self._publish_error(f"transcriber error: {exc}")
             return
         if not text:
+            LOGGER.info("Audio chunk skipped: empty transcription (silent or low VAD). RMS: %.2f, duration: %.2f", rms, duration)
+            self.event_bus.publish(
+                Event(
+                    type="audio_chunk_skipped",
+                    payload={
+                        "reason": "empty_transcription",
+                        "rms": rms,
+                        "duration": duration,
+                        "provider": self._transcriber.name,
+                        "timestamp": time.time(),
+                    },
+                )
+            )
             return
         timestamp = time.time()
         payload = {
