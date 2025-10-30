@@ -17,3 +17,11 @@ All notable sass and mech upgrades will be documented here.
 - Faster Whisper STT loop wired into the Control Tower with pluggable providers and CPU INT8 defaults for the dojo Mac.
 - New `.control_tower/models` cache path keeps whisper weights local (auto-seeded from config), plus host mic transcription smoke-tested.
 - README/plan docs refreshed with audio config, env knobs, and model caching ritual guidance.
+
+## 2025-10-30 — Audio Dojo Refactor
+
+- Audio provider split into modular package: `audio/loop.py`, `stt_factory.py`, and `transcribers/` (Faster Whisper, OpenAI, debug).
+- `AudioLoop` now respects `CONTROL_TOWER_AUDIO_SOURCE`, handles bridge-forwarded PCM, and surfaces sanitized status snapshots.
+- VAD threshold config (`CONTROL_TOWER_AUDIO_VAD_THRESHOLD`) finally powers the loop; skipped chunks publish `audio.chunk_skipped` events.
+- `/status` API exposes `audio.available`, `audio.running`, `audio.source`, and `audio.has_transcription` only—no transcript leaks.
+- `.env.example`, README, and docs updated with new env knobs, provider guidance, and refreshed architecture notes.
