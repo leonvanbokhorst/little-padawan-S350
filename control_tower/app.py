@@ -78,7 +78,12 @@ def create_app(config: ControlTowerConfig | None = None) -> FastAPI:
             "audio": {
                 "available": app.state.audio_loop.available,
                 "running": app.state.audio_loop.is_running,
-                "last_transcription": app.state.audio_loop.last_transcription,
+                # Only expose whether a transcription exists, not its content
+                "has_transcription": bool(app.state.audio_loop.last_transcription),
+                # Optionally, you could expose a sanitized/shortened version:
+                # "last_transcription_preview": (
+                #     app.state.audio_loop.last_transcription[:32] + "..." if app.state.audio_loop.last_transcription else None
+                # ),
             },
         }
 
