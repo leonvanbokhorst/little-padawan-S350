@@ -25,3 +25,5 @@ All notable sass and mech upgrades will be documented here.
 - VAD threshold config (`CONTROL_TOWER_AUDIO_VAD_THRESHOLD`) finally powers the loop; skipped chunks publish `audio.chunk_skipped` events.
 - `/status` API exposes `audio.available`, `audio.running`, `audio.source`, and `audio.has_transcription` only—no transcript leaks.
 - `.env.example`, README, and docs updated with new env knobs, provider guidance, and refreshed architecture notes.
+- Added `eufy-config.example.json` and documented the bridge credential handoff so apprentices don’t yeet secrets into git.
+- `scripts/load_env.sh` now auto-generates `eufy-config.json` (when missing) from the `EUFY_*` env squad, tightening the onboarding ritual.
