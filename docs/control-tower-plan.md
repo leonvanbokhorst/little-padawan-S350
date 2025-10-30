@@ -82,11 +82,13 @@
 - RTSP consumer (OpenCV) hooking into event bus.
 - Time-based frame throttling + reconnect-on-failure logic.
 
-#### `audio.py`
+#### `audio/`
 
-- Current STT: local **Faster Whisper** worker chewing host mic audio and emitting `audio.transcription` events (models cached under `.control_tower/models`).
-- Provider tree pluggable via config; future swap to S350 livestream input + remote STT targets is planned.
-- Handle TTS + talkback streaming via bridge helper.
+- `loop.py` hosts the `AudioLoop`, configurable for host microphone, bridge-forwarded PCM, or disabled capture, while emitting `audio.transcription` and `audio.chunk_skipped` events.
+- `stt_factory.py` resolves provider configs into concrete transcribers using options parsed from `CONTROL_TOWER_STT_OPTIONS`.
+- `transcribers/` contains implementations (Faster Whisper, OpenAI, debug) and is the spot for future engines.
+- `utils.py` centralizes PCM helpers (RMS, WAV encoding) and option parsing.
+- TTS/talkback streaming remains on the roadmap and will likely sit beside the STT loop or within a sibling module.
 
 #### `persona.py`
 
@@ -135,7 +137,7 @@
 - [x] Write placeholder tests or smoke checks (import, config load).
 - [x] Update `START_PROCEDURE.md` with Control Tower launch command once implemented.
 - [x] Implement audio loop (capture + STT) emitting `audio.transcription` events (Faster Whisper local).
-- [ ] Ingest S350 livestream audio into STT pipeline (replace host mic capture).
+- [x] Ingest S350 livestream audio into STT pipeline via bridge-forwarded PCM chunks.
 - [ ] Add TTS/talkback pipeline with `bridge.device_command` helper.
 - [x] Surface audio state in `/status` and docs.
 

@@ -13,7 +13,7 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
 | **Control Tower** | FastAPI skeleton auto-starts bridge subscriptions (`start_listening` + heartbeats) with `/status` |
 | **Bridge**        | Node-based `eufy-security-server` streams live device events into the Control Tower               |
 | **Vision Loop**   | RTSP motion detector (OpenCV) emitting events into Control Tower                                  |
-| **Voice Loop**    | Faster Whisper STT on host mic emitting `audio.transcription` events; talkback/TTS next           |
+| **Voice Loop**    | Configurable STT (host mic or bridge feed) emitting `audio.transcription` & `audio.chunk_skipped` events |
 | **Persona**       | Narrative + etiquette captured; sass quota remains high                                           |
 
 ## State of the Dojo
@@ -24,7 +24,7 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
 - `uv` project initialized with Python 3.12, `.venv`, and core deps (`fastapi`, `uvicorn`, `opencv-python-headless`, `httpx`, `sounddevice`, `faster-whisper`).
 - `eufy-config.json` currently holds local credentials; treat like a temporary secret vault and do not commit anywhere public.
 - Control Tower now auto-subscribes to bridge events (`start_listening`), logs device/person/motion detections, and exposes `/events`.
-- Next moves: wire audio loops, automate rituals, and surface device event history in dashboards/persona responses.
+- Next moves: expand talkback/TTS, automate rituals, and surface device event history in dashboards/persona responses.
 
 ## Quickstart for Apprentice Builders
 
@@ -56,15 +56,16 @@ I’m Little Wan, the cheeky apprentice AI destined to live inside a Eufy S350 p
 
 ## Audio Loop Configuration
 
-- **Default STT**: Local Faster Whisper model (`CONTROL_TOWER_STT_KIND=faster-whisper`) operating on the host mic. Tune latency/accuracy via `CONTROL_TOWER_STT_OPTIONS` JSON, e.g. `{"model":"small","device":"cpu","beam_size":3,"download_root":".control_tower/models"}`.
-- **Provider swap**: Flip to OpenAI (or future providers) by setting `CONTROL_TOWER_STT_KIND=openai` and supplying API credentials plus options like `{"model":"gpt-4o-mini-transcribe"}`.
-- **Dependencies**: Faster Whisper ships in the project deps. Remote engines may need extra installs (e.g. `pip install openai`) before launching the tower.
-- **Audio source**: Currently listens to the host microphone; roadmap item will ingest the S350 livestream audio stream directly from the bridge.
-- **Model cache**: Control Tower stashes weights under `.control_tower/models` (gitignored). Prefetch with:
+- **Default STT**: Local Faster Whisper model (`CONTROL_TOWER_STT_KIND=faster-whisper`). Tune latency/accuracy via `CONTROL_TOWER_STT_OPTIONS` JSON, e.g. `{"model":"small","device":"cpu","beam_size":3,"download_root":".control_tower/models"}`. If you omit `download_root`, Control Tower defaults it to `.control_tower/models`.
+- **Provider swap**: Flip to OpenAI (or future providers) by setting `CONTROL_TOWER_STT_KIND=openai` and supplying API credentials plus options like `{"model":"gpt-4o-mini-transcribe"}`. Additional providers live under `control_tower/providers/audio/transcribers/`.
+- **Audio source**: Pick your capture path with `CONTROL_TOWER_AUDIO_SOURCE` → `host` (default microphone), `bridge` (PCM chunks relayed by the Node bridge), or `disabled` to skip STT entirely. The bridge path accepts base64 PCM payloads and still honors VAD thresholds before transcription.
+- **VAD threshold**: `CONTROL_TOWER_AUDIO_VAD_THRESHOLD` controls the RMS cutoff (default `0.015`). Chunks that fail VAD or return empty STT results publish `audio.chunk_skipped` events for observability.
+- **Model cache**: Control Tower stashes Faster Whisper weights under `.control_tower/models` (gitignored). Prefetch with:
   ```bash
   uv run python -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8', download_root='.control_tower/models')"
   ```
   Sample clip `captures/s350-sample.mp4` is nearly silent—use your own audio to verify transcripts.
+- **Status response**: `/status` now reports `audio.available`, `audio.running`, `audio.source`, and `audio.has_transcription` (no raw transcript leak).
 
 ## Repository Map
 

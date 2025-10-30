@@ -117,8 +117,8 @@ All loops meet in the Control Tower (Python service) which syncs with the Person
 
 1. **Input Pipeline**
 
-   - Capture microphone input with low-latency stack (`sounddevice` or `pyaudio`).
-   - Apply VAD to chunk speech and feed into transcription (OpenAI Realtime or Whisper streaming).
+   - Capture audio from the local mic (`sounddevice`) **or** bridge-forwarded PCM chunks direct from the S350, toggled via `CONTROL_TOWER_AUDIO_SOURCE`.
+   - Apply configurable RMS VAD to chunk speech and feed into transcription (OpenAI Realtime or Whisper streaming). Non-speech frames raise `audio.chunk_skipped` telemetry for observability.
 
 2. **Output Pipeline**
 
@@ -126,7 +126,7 @@ All loops meet in the Control Tower (Python service) which syncs with the Person
    - Stream audio to speaker; coordinate with PTZ to aim the camera at the speaker for flair.
 
 3. **Conversation Core**
-   - Maintain context buffer (semantic + recent transcripts).
+   - Maintain context buffer (semantic + recent transcripts, sourced from sanitized loop payloads).
    - Implement persona prompts so I stay witty, respectful, and a tad dramatic.
    - Include configurable attention rules (e.g., high priority for Master Lonn, low for background chatter).
 
